@@ -1,0 +1,114 @@
+package com.along.friendlyreminder.my;
+
+import com.along.friendlyreminder.R;
+import com.along.friendlyreminder.R.id;
+import com.along.friendlyreminder.R.layout;
+
+import android.app.Activity;
+import android.content.Context;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.os.Bundle;
+import android.view.animation.Animation;
+import android.view.animation.RotateAnimation;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.TextView;
+/**
+ * 利用重力传感器和磁力传感器写的一个指南针
+ * @author Windows
+ *
+ */
+public class MyOrientationActivity extends Activity implements SensorEventListener {
+
+	public static final String TAG = "MyOrientationActivity方向传感器";
+
+	private Button btn;
+
+	private TextView tv_context;
+
+	float[] accelerometerValues = new float[3];
+
+	float[] magneticFieldValues = new float[3];
+
+	float[] values = new float[3];
+
+	float[] rotate = new float[9];
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_main_orien);
+		infoViews();// 初始化控件
+	}
+
+	private void infoViews() {
+
+		btn = (Button) findViewById(R.id.btn_sensor);
+		tv_context = (TextView) findViewById(R.id.tv_context);
+		tv_context.setText("指南针");
+		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+		aSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+		mSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+		image = (ImageView) findViewById(R.id.main_iv);
+	}
+
+	private ImageView image;
+
+	private SensorManager mSensorManager;
+
+	private Sensor aSensor;
+
+	private Sensor mSensor;
+
+	@Override
+	protected void onResume() {
+
+		super.onResume();
+		mSensorManager.registerListener(this, aSensor, SensorManager.SENSOR_DELAY_GAME);
+		mSensorManager.registerListener(this, mSensor, SensorManager.SENSOR_DELAY_GAME);
+	}
+
+	@Override
+	protected void onPause() {
+
+		super.onPause();
+		mSensorManager.unregisterListener(this);
+	}
+
+	float currentDegree = 0f;
+
+	@Override
+	public void onSensorChanged(SensorEvent event) {
+
+		if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+			accelerometerValues = event.values;
+		}
+		if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+			magneticFieldValues = event.values;
+		}
+		SensorManager.getRotationMatrix(rotate, null, accelerometerValues, magneticFieldValues);
+		SensorManager.getOrientation(rotate, values);
+		// 经过SensorManager.getOrientation(rotate, values);得到的values值为弧度
+		// 转换为角度
+		float degree = (float) Math.toDegrees(values[0]);
+		// 创建旋转动画（反向转过degree度）
+		RotateAnimation ra = new RotateAnimation(currentDegree, -degree, Animation.RELATIVE_TO_SELF, 0.5f,
+		        Animation.RELATIVE_TO_SELF, 0.5f);
+		ra.setDuration(300);// 设置动画的持续时间
+		ra.setFillAfter(true);// 设置动画旋转后保留的状态
+		image.startAnimation(ra);
+		currentDegree = -degree;
+	}
+
+	@Override
+	public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+		// TODO Auto-generated method stub
+
+	}
+
+}

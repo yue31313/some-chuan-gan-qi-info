@@ -1,0 +1,476 @@
+package com.along.friendlyreminder;
+
+import android.app.Activity;
+import android.app.KeyguardManager;
+import android.app.KeyguardManager.KeyguardLock;
+import android.app.admin.DevicePolicyManager;
+import android.content.BroadcastReceiver;
+import android.content.ContentResolver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.PowerManager;
+import android.os.SystemClock;
+import android.os.Vibrator;
+import android.provider.Settings;
+import android.provider.Settings.SettingNotFoundException;
+import android.util.Log;
+import android.view.KeyEvent;
+import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.TextView;
+
+/**
+ * 重力传感器
+ * 
+ * 加速度传感器的类型常量是Sensor.TYPE_GRAVITY。重力传感器与加速度传感器使用同一套坐标系。
+ * values数组中三个元素分别表示了X、Y、Z轴的重力大小。Android SDK定义了一些常量，
+ * 用于表示星系中行星、卫星和太阳表面的重力。下面就来温习一下天文知识，将来如果在地球以外用Android手机，也许会用得上。
+ * 
+ * public static final float GRAVITY_SUN= 275.0f;
+ * 
+ * public static final float GRAVITY_MERCURY= 3.70f;
+ * 
+ * public static final float GRAVITY_VENUS= 8.87f;
+ * 
+ * public static final float GRAVITY_EARTH= 9.80665f;
+ * 
+ * public static final float GRAVITY_MOON= 1.6f;
+ * 
+ * public static final float GRAVITY_MARS= 3.71f;
+ * 
+ * public static final float GRAVITY_JUPITER= 23.12f;
+ * 
+ * public static final float GRAVITY_SATURN= 8.96f;
+ * 
+ * public static final float GRAVITY_URANUS= 8.69f;
+ * 
+ * public static final float GRAVITY_NEPTUNE= 11.0f;
+ * 
+ * public static final float GRAVITY_PLUTO= 0.6f;
+ * 
+ * public static final float GRAVITY_DEATH_STAR_I= 0.000000353036145f;
+ * 
+ * public static final float GRAVITY_THE_ISLAND= 4.815162342f;
+ * 
+ * @author Windows
+ * 
+ */
+
+public class GravityActivity extends Activity implements SensorEventListener {
+
+	public static final String TAG = "GravityActivity重力传感器";
+
+	private Button btn;
+
+	private TextView tv_context;
+
+	private PowerManager.WakeLock wake;
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+
+		super.onCreate(savedInstanceState);
+		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);// 设置屏幕常亮
+
+		pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+
+		wake = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "GravityActivity");
+		wake.acquire();
+
+		setContentView(R.layout.activity_main);
+		infoViews();// 初始化控件
+		vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+
+		/**
+		 * 这个主要是管理员控制锁屏的功能（但是还没有完成）
+		 */
+
+		// deviceManager = (DevicePolicyManager)
+		// getSystemService(Context.DEVICE_POLICY_SERVICE);
+
+		// ComponentName compontName = new ComponentName(this,
+		// DeviceAdminReceiver.class);
+
+		// isAdmin = deviceManager.isAdminActive(compontName);
+		// if (isAdmin) {
+		// Intent intent = new Intent();
+		// intent.setAction(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
+		// intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, compontName);
+		// startActivity(intent);
+		// }
+	}
+
+	private void infoViews() {
+
+		btn = (Button) findViewById(R.id.btn_sensor);
+		tv_context = (TextView) findViewById(R.id.tv_context);
+		tv_context.setText("重力传感器");
+		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+		mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+	}
+
+	private Sensor mAccelerometer;
+
+	private SensorManager mSensorManager;
+
+	private ScreenOFFReceiver offReceiver;
+
+	private ScreenONReceiver onReceiver;
+
+	@Override
+	protected void onResume() {
+
+		// 注册闭屏广播
+		IntentFilter mFilter01;
+		mFilter01 = new IntentFilter("android.intent.action.SCREEN_OFF");
+		offReceiver = new ScreenOFFReceiver();
+		registerReceiver(offReceiver, mFilter01);
+
+		// 注册开屏广播
+		IntentFilter mFilter02;
+		mFilter02 = new IntentFilter("android.intent.action.SCREEN_ON");
+		onReceiver = new ScreenONReceiver();
+		registerReceiver(onReceiver, mFilter02);
+
+		// 获取亮度值
+		brightness = getScreenBrightness(this);
+		Log.e(TAG, getScreenBrightness(this) + ":::" + isAutoBrightness(this.getContentResolver()));
+
+		mSensorManager.registerListener(GravityActivity.this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+		super.onResume();
+	}
+
+	public class ScreenOFFReceiver extends BroadcastReceiver {
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+
+			// TODO Auto-generated method stub
+			Log.d("H3c", "screen off");
+		}
+
+	}
+
+	public class ScreenONReceiver extends BroadcastReceiver {
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+
+			Log.d("H3c", "screen on");
+
+			setScreenOnOrOff();
+			// // 开屏后解锁
+			// KeyguardManager keyguardManager = (KeyguardManager)
+			// getSystemService(KEYGUARD_SERVICE);
+			//
+			// KeyguardLock keyguardLock = keyguardManager.newKeyguardLock("");
+			// keyguardLock.disableKeyguard();
+		}
+	}
+
+	protected void onPause() {
+
+		super.onPause();
+		mSensorManager.unregisterListener(GravityActivity.this);
+	}
+
+	public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+		// Log.d(TAG, accuracy + "--"+sensor.getMaximumRange());
+	}
+
+	private long lastUpdateTime;
+
+	// 手机上一个位置时重力感应坐标
+	private float lastX;
+
+	private float lastY;
+
+	private float lastZ;
+
+	Vibrator vibrator;
+
+	// 速度阈值，当摇晃速度达到这值后产生作用
+	private static final int SPEED_SHRESHOLD = 1000;
+
+	// 两次检测的时间间隔
+	private static final int UPTATE_INTERVAL_TIME = 70;
+
+	private DevicePolicyManager deviceManager;
+
+	// private boolean isAdmin;
+
+	private PowerManager pm;
+
+	public void onSensorChanged(SensorEvent event) {
+
+		// 现在检测时间
+		long currentUpdateTime = System.currentTimeMillis();
+		// 两次检测的时间间隔
+		long timeInterval = currentUpdateTime - lastUpdateTime;
+		// 判断是否达到了检测时间间隔
+		// if (timeInterval < UPTATE_INTERVAL_TIME)
+		// return;
+		// 现在的时间变成last时间
+		lastUpdateTime = currentUpdateTime;
+
+		// 获得x,y,z坐标
+		float x = event.values[0];
+		float y = event.values[1];
+		float z = event.values[2];
+
+		// if (Math.abs(x) > 9.0 || Math.abs(y) > 9.0) {
+		// Log.e("onSensorChanged", Math.abs(x)+"::"+Math.abs(y));
+		// Log.e("onSensorChanged", isAdmin+"");
+		// if (!isAdmin) {
+		// Log.e("onSensorChanged", isAdmin+"");
+		// deviceManager.lockNow();
+		// // deviceManager.resetPassword("123456", 0);
+		// }
+		// }
+		//
+
+		// 获得x,y,z的变化值
+		float deltaX = x - lastX;
+		float deltaY = y - lastY;
+		float deltaZ = z - lastZ;
+		// Log.e("onSensorChanged", deltaX+
+		// "::::"+deltaY+"::::::"+deltaZ+"::::"+timeInterval);
+		// 将现在的坐标变成last坐标
+		lastX = x;
+		lastY = y;
+		lastZ = z;
+
+		/*
+		 * 这里主要是测试车友拿起放下的动作
+		 */
+		double riderSpeed = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+		/*
+		 * 这段代码有问题，异常
+		 */
+		if (riderSpeed > 5) {
+			// 按照自己需求设置屏幕的亮度
+			toggleBrightness(this);
+			Log.e(TAG, brightness + ":::" + isAutoBrightness(this.getContentResolver()));
+			// Log.e("执行车友的拿手机的动作", riderSpeed + "");
+			// // pm.goToSleep(SystemClock.uptimeMillis());
+			// new Handler().postDelayed(new Runnable() {
+			//
+			// @Override
+			// public void run() {
+			//
+			// wake.release();
+			//
+			// }
+			// }, 50);// 在释放的时候异常了
+		}
+
+		// double speed = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ *
+		// deltaZ) / timeInterval * 10000;
+		//
+		// if (speed >= SPEED_SHRESHOLD) {
+
+		/**
+		 * 摇一摇打电话的功能
+		 */
+		// Intent intent = new Intent();
+		// intent.setAction(Intent.ACTION_DIAL);
+		// intent.setData(Uri.parse("tel:" + 1519279158));
+		// startActivity(intent);
+		/**
+		 * 类似微信摇一摇的功能
+		 */
+		// MediaPlayer mp = new MediaPlayer();
+		// try {
+		// startVibrator();// 开始震动
+		// mp.setDataSource(this,RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE));
+		// mp.prepare();
+		// mp.start();
+		// // Toast.makeText(getApplicationContext(), "开始震动", 0).show();
+		// } catch (IllegalArgumentException e) {
+		// e.printStackTrace();
+		// Log.e("IllegalArgumentException", e.toString());
+		// } catch (SecurityException e) {
+		// Log.e("SecurityException", e.toString());
+		// e.printStackTrace();
+		// } catch (IllegalStateException e) {
+		// Log.e("IllegalStateException", e.toString());
+		// e.printStackTrace();
+		// } catch (IOException e) {
+		// Log.e("IOException", e.toString());
+		// e.printStackTrace();
+		// }
+		// }
+
+	}
+
+	public void startVibrator() {// 定义震动器
+
+		vibrator.vibrate(new long[] { 500, 200, 500, 200 }, -1);
+	}
+
+	int brightness;
+
+	/**
+	 * 按照自己需求更改背光亮度
+	 * 
+	 * @param activity
+	 */
+//	PowerManager manager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+
+	public void toggleBrightness(Activity activity) {
+
+		// 是否亮度自动调节，如果是则关闭自动调节
+		boolean isAutoBrightness = isAutoBrightness(getContentResolver());
+		if (isAutoBrightness) {
+			stopAutoBrightness(activity);
+		}
+		brightness -= 20;// 按自己的需求设置
+
+		if (brightness < 0) {
+			// 设置亮度
+			setBrightness(activity, 10);
+
+//			manager.goToSleep(SystemClock.uptimeMillis());
+
+		} else {
+			// 设置亮度
+			setBrightness(activity, brightness);
+		}
+		if (brightness > 255) {
+			// 亮度超过最大值后设置为自动调节
+			startAutoBrightness(activity);
+			brightness = 50;// 按自己的需求设置
+		}
+		// 保存设置状态
+		// saveBrightness(getContentResolver(), brightness);
+	}
+
+	/**
+	 * Android的屏幕亮度好像在2.1+的时候提供了自动调节的功能，所以，如果当开启自动调节功能的时候，
+	 * 我们进行调节好像是没有一点作用的，这点让我很是无语，结果只有进行判断，看是否开启了屏幕亮度的自动调节功能。
+	 */
+	/**
+	 * 判断是否开启了自动亮度调节
+	 */
+	public static boolean isAutoBrightness(ContentResolver aContentResolver) {
+
+		boolean automicBrightness = false;
+		try {
+			automicBrightness = (Settings.System.getInt(aContentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE) == Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC);
+		} catch (SettingNotFoundException e) {
+			e.printStackTrace();
+		}
+
+		return automicBrightness;
+
+	}
+
+	/**
+	 * 获取屏幕的亮度
+	 */
+	public static int getScreenBrightness(Activity activity) {
+
+		int nowBrightnessValues = 0;
+		ContentResolver resolver = activity.getContentResolver();
+		try {
+			nowBrightnessValues = android.provider.Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS);
+		} catch (SettingNotFoundException e) {
+			e.printStackTrace();
+		}
+		return nowBrightnessValues;
+	}
+
+	/**
+	 * 修改背光亮度
+	 */
+	public static void setBrightness(Activity activity, int brightness) {
+
+		WindowManager.LayoutParams wl = activity.getWindow().getAttributes();
+		wl.screenBrightness = Float.valueOf(brightness) * (1f / 255f);
+		activity.getWindow().setAttributes(wl);
+
+	}
+
+	/**
+	 * 停止自动亮度调节
+	 */
+	public static void stopAutoBrightness(Activity activity) {
+
+		Settings.System.putInt(activity.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS_MODE,
+		        Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
+
+	}
+
+	/**
+	 * 开启亮度自动调节
+	 */
+	public static void startAutoBrightness(Activity activity) {
+
+		Settings.System.putInt(activity.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS_MODE,
+		        Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC);
+	}
+
+	/**
+	 * 保存设置的亮度的值
+	 */
+	public static void saveBrightness(ContentResolver resolver, int brightness) {
+
+		Uri uri = android.provider.Settings.System.getUriFor("screen_brightness");
+		android.provider.Settings.System.putInt(resolver, "screen_brightness", brightness);
+		resolver.notifyChange(uri, null);
+
+	}
+
+	/**
+	 * 设置屏幕解锁和锁屏的功能
+	 * 
+	 */
+	public void setScreenOnOrOff() {
+
+		// getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+		// WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);//这个是保持屏幕常亮的，和防止屏幕锁屏的。
+		PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+		KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+		PowerManager.WakeLock wakeLock = pm.newWakeLock(PowerManager.ACQUIRE_CAUSES_WAKEUP
+		        | PowerManager.SCREEN_DIM_WAKE_LOCK, "");
+		wakeLock.acquire();
+		// wakeLock.release();这个是释放锁
+		// android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD;
+		// android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED;
+		// 初始化键盘锁，可以解锁和锁定
+		KeyguardLock mKeyguardLock = km.newKeyguardLock("");
+		// 禁用显示键盘锁定
+		mKeyguardLock.disableKeyguard();
+	}
+
+	@Override
+	protected void onDestroy() {
+
+		super.onDestroy();
+		unregisterReceiver(offReceiver);
+		unregisterReceiver(onReceiver);
+	}
+
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+
+		if (keyCode == KeyEvent.KEYCODE_VOLUME_UP&event.isLongPress()) {
+			Log.e(TAG, "声音放大");
+			return true;
+		} else if (event.isLongPress()&keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+			Log.e(TAG, "声音缩小");
+			return true;
+		}else{
+			return super.onKeyDown(keyCode, event);
+		}
+	}
+
+}

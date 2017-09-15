@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.along.friendlyreminder"
+    android:versionCode="1"
+    android:versionName="1.0" >
+
+    <uses-sdk
+        android:minSdkVersion="8"
+        android:targetSdkVersion="18" />
+
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme" >
+        <activity
+            android:name=".MainActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".AccelerometerActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" >
+        </activity>
+        <activity
+            android:name=".AmbientActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" >
+        </activity>
+        <activity
+            android:name=".GravityActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" >
+        </activity>
+        <activity
+            android:name=".GyroscopeActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" >
+        </activity>
+        <activity
+            android:name=".LightActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" >
+        </activity>
+        <activity
+            android:name=".LinearActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" >
+        </activity>
+        <activity
+            android:name=".MagneticFieldActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" >
+        </activity>
+        <activity
+            android:name=".OrientationActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" >
+        </activity>
+        <activity
+            android:name=".PressureActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" >
+        </activity>
+        <activity
+            android:name=".ProximityActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" >
+        </activity>
+        <activity
+            android:name=".RotationActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" >
+        </activity>
+        <activity
+            android:name="com.along.friendlyreminder.my.MyOrientationActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" >
+        </activity>
+        <activity
+            android:name="com.along.friendlyreminder.my.MyNewAmbientActivity"
+            android:label="@string/app_name"
+            android:theme="@style/ActivityTheme" />
+        <activity android:name="com.along.friendlyreminder.speak.VoiceRecognitionActivity" />
+
+        <receiver
+            android:name=".app.DeviceAdminSample$DeviceAdminSampleReceiver"
+            android:permission="android.permission.BIND_DEVICE_ADMIN" >
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/my_admin" />
+
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>
